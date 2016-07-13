@@ -52,7 +52,10 @@ func userPage(w http.ResponseWriter, r *http.Request) {
 	user := getUser(uname)
 	profile, _ := template.ParseFiles("site/profile.html")
 
-	profile.Execute(w, user)
+	err := profile.Execute(w, user)
+	if err != nil {
+		w.Write([]byte(err.Error()))
+	}
 }
 
 func getUser(username string) Users {
