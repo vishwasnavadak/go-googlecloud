@@ -1,16 +1,18 @@
-package hello
+package goweb
 
 import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 )
 
-type users struct {
+type Users struct {
 	Name  string `json:"name"`
 	Uname string `json:"uname"`
 	Pass  string `json:"pass"`
@@ -20,11 +22,10 @@ func init() {
 
 	http.Handle("/", http.FileServer(http.Dir("site")))
 	http.HandleFunc("/login/", login)
-	http.HandleFunc("/user/", user)
+	http.HandleFunc("/user/", userPage)
 
 }
 func login(w http.ResponseWriter, r *http.Request) {
-	flag := false
 	r.ParseForm()
 	username := r.Form["username"][0]
 	password := r.Form["password"][0]
@@ -32,32 +33,42 @@ func login(w http.ResponseWriter, r *http.Request) {
 	p.Write([]byte(password))
 	p.Sum(nil)
 	password = hex.EncodeToString(p.Sum(nil))
-	user := getUsers()
-	for _, p := range user {
-		if p.Uname == username && p.Pass == password {
-			flag = true
-			break
-		}
+	user := getUser(username)
 
-	}
-	if flag {
+	if user.Pass == password {
 		w.Write([]byte("True"))
 	} else {
 		w.Write([]byte("False"))
 	}
 
 }
-func user(w http.ResponseWriter, r *http.Request) {
 
+func userPage(w http.ResponseWriter, r *http.Request) {
+	url := strings.Split(r.URL.Path, "/")
+	var uname string
+	if len(url) >= 3 {
+		uname = url[2]
+	}
+	user := getUser(uname)
+	profile, _ := template.ParseFiles("site/profile.html")
+
+	profile.Execute(w, user)
 }
-func getUsers() []users {
+
+func getUser(username string) Users {
 	raw, err := ioutil.ReadFile("cred.json")
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
 
-	var c []users
-	json.Unmarshal(raw, &c)
-	return c
+	var allUsers []Users
+	json.Unmarshal(raw, &allUsers)
+	for _, p := range allUsers {
+		if p.Uname == username {
+			return p
+		}
+
+	}
+	return Users{}
 }
